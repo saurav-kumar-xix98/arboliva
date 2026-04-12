@@ -3,7 +3,7 @@ use crate::grid::Grid;
 
 pub struct ActivePositionsSet {
     history: std::collections::VecDeque<Grid<bool>>,
-    counter: Grid<u8>,
+    counter: Grid<usize>,
     max_capacity: usize,
 }
 

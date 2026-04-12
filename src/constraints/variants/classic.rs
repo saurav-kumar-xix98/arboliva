@@ -16,18 +16,18 @@ impl Constraint for ClassicConstraint {
         helpers::update_grid_for_position(grid, active_positions, |pos| -> Vec<Position> {
             let mut positions_to_update = Vec::new();
 
-            let row = pos.row();
-            let col = pos.col();
+            let row = pos.row;
+            let col = pos.col;
 
             for r in 0..GRID_SIZE {
-                let pos = Position::new(r, col);
+                let pos = Position{row: r, col};
                 if r != row {
                     positions_to_update.push(pos);
                 }
             }
 
             for c in 0..GRID_SIZE {
-                let pos = Position::new(row, c);
+                let pos = Position{row, col: c};
                 if c != col {
                     positions_to_update.push(pos);
                 }
@@ -37,7 +37,7 @@ impl Constraint for ClassicConstraint {
             let region_col = (col / REGION_SIZE) * REGION_SIZE;
             for r in region_row..region_row + REGION_SIZE {
                 for c in region_col..region_col + REGION_SIZE {
-                    let pos = Position::new(r, c);
+                    let pos = Position{row: r, col: c};
                     if r != row && c != col {
                         positions_to_update.push(pos);
                     }

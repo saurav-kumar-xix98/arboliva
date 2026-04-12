@@ -3,7 +3,7 @@ use crate::constraints::constraint::Constraint;
 use crate::grid::{CandidateCell, Grid, Position};
 
 pub struct Cage {
-    pub sum: u8,
+    pub sum: usize,
     pub positions: Vec<Position>,
 }
 
@@ -28,10 +28,10 @@ impl KillerConstraint {
 
 fn recursive_solve(grid: &mut Grid<CandidateCell>,
                    cage_positions: &Vec<Position>,
-                   updated_candidates: &mut Vec<[bool; GRID_SIZE as usize]>,
-                   values_used: &mut [bool; GRID_SIZE as usize],
+                   updated_candidates: &mut Vec<[bool; GRID_SIZE]>,
+                   values_used: &mut [bool; GRID_SIZE],
                    index: usize,
-                   target_sum: u8
+                   target_sum: usize
 ) -> bool {
     if index == cage_positions.len() {
         return target_sum == 0;
@@ -40,12 +40,12 @@ fn recursive_solve(grid: &mut Grid<CandidateCell>,
     let mut is_possible = false;
 
     let pos = cage_positions[index];
-    for i in 0..GRID_SIZE as usize {
-        let val = (i + 1) as u8;
+    for i in 0..GRID_SIZE {
+        let val = i + 1;
         if val > target_sum {
             break;
         }
-        if values_used[i] || !grid[pos].is_valid(val) {
+        if values_used[i] || !grid[pos].contains(val) {
             continue;
         }
 
@@ -68,7 +68,7 @@ impl Constraint for KillerConstraint {
 
         for row in 0..GRID_SIZE {
             for col in 0..GRID_SIZE {
-                let pos = Position::new(row, col);
+                let pos = Position{row, col};
                 if active_positions[pos] {
                     for cage_index in &self.cage_indices[pos] {
                         is_cage_active[*cage_index] = true;
@@ -85,8 +85,8 @@ impl Constraint for KillerConstraint {
             }
             let cage = &self.cages[i];
             let cage_size = cage.positions.len();
-            let mut values_used = [false; GRID_SIZE as usize];
-            let mut updated_candidates = vec![[false; GRID_SIZE as usize]; cage_size];
+            let mut values_used = [false; GRID_SIZE];
+            let mut updated_candidates = vec![[false; GRID_SIZE]; cage_size];
 
             if !recursive_solve(grid, &cage.positions, &mut updated_candidates, &mut values_used, 0, cage.sum) {
                 return None;
@@ -95,8 +95,9 @@ impl Constraint for KillerConstraint {
             for i in 0..cage_size {
                 for val in 1..=GRID_SIZE {
                     let pos = cage.positions[i];
-                    if !updated_candidates[i][(val - 1) as usize] && grid[pos].is_valid(val) {
-                        grid[pos].remove_candidate(val);
+                    if !updated_candidates[i][val - 1] && grid[pos].contains(val) {
+                        println!("Removing {} from {}", val, pos);
+                        grid[pos].remove(val);
                         affected_positions[pos] = true;
                     }
                 }

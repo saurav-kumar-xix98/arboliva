@@ -27,9 +27,9 @@ impl ThermometerConstraint {
 
 fn recursive_solve(grid: &mut Grid<CandidateCell>,
                    thermometer_positions: &Vec<Position>,
-                   updated_candidates: &mut Vec<[bool; GRID_SIZE as usize]>,
+                   updated_candidates: &mut Vec<[bool; GRID_SIZE]>,
                    index: usize,
-                   lower_limit: u8
+                   lower_limit: usize
 ) -> bool {
     if index == thermometer_positions.len() {
         return true;
@@ -39,11 +39,11 @@ fn recursive_solve(grid: &mut Grid<CandidateCell>,
 
     let pos = thermometer_positions[index];
     for val in lower_limit..=GRID_SIZE {
-        let i = (val - 1) as usize;
-        if i + thermometer_positions.len() - index > GRID_SIZE as usize {
+        let i = val - 1;
+        if i + thermometer_positions.len() - index > GRID_SIZE {
             break;
         }
-        if !grid[pos].is_valid(val) {
+        if !grid[pos].contains(val) {
             continue;
         }
 
@@ -65,7 +65,7 @@ impl Constraint for ThermometerConstraint {
 
         for row in 0..GRID_SIZE {
             for col in 0..GRID_SIZE {
-                let pos = Position::new(row, col);
+                let pos = Position{row, col};
                 if active_positions[pos] {
                     for thermometer_index in &self.thermometer_indices[pos] {
                         is_thermometer_active[*thermometer_index] = true;
@@ -83,7 +83,7 @@ impl Constraint for ThermometerConstraint {
 
             let thermometer = &self.thermometers[i];
             let thermometer_size = thermometer.positions.len();
-            let mut updated_candidates = vec![[false; GRID_SIZE as usize]; thermometer_size];
+            let mut updated_candidates = vec![[false; GRID_SIZE]; thermometer_size];
 
             if !recursive_solve(grid, &thermometer.positions, &mut updated_candidates, 0, 1) {
                 print!("Thermometer cannot be solved: ");
@@ -97,9 +97,9 @@ impl Constraint for ThermometerConstraint {
             for i in 0..thermometer_size {
                 for val in 1..=GRID_SIZE {
                     let pos = thermometer.positions[i];
-                    if !updated_candidates[i][(val - 1) as usize] && grid[pos].is_valid(val) {
+                    if !updated_candidates[i][val - 1] && grid[pos].contains(val) {
                         println!("Removing {} from {}", val, pos);
-                        grid[pos].remove_candidate(val);
+                        grid[pos].remove(val);
                         affected_positions[pos] = true;
                     }
                 }

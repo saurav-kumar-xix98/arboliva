@@ -3,7 +3,7 @@ use crate::constraints::constraint_set::ConstraintSet;
 use serde_yaml::Value;
 
 pub struct Puzzle {
-    pub grid: Grid<Option<u8>>,
+    pub grid: Grid<Option<usize>>,
     pub constraint_set: ConstraintSet,
 }
 

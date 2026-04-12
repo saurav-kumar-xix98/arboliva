@@ -14,6 +14,8 @@ pub trait Constraint {
             let newly_affected_positions = self.update(grid, active_positions)?;
             helpers::accumulate(&newly_affected_positions, &mut affected_positions);
             active_positions = newly_affected_positions;
+
+            println!("{}", grid);
         }
 
         Some(affected_positions)

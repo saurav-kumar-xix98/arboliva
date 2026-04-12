@@ -17,7 +17,7 @@ pub fn load_puzzle(path: &str) -> Result<Puzzle, Box<dyn Error>> {
 }
 
 fn main() {
-    let puzzle = match load_puzzle("puzzles/thermometer.yaml") {
+    let puzzle = match load_puzzle("puzzles/carnival.yaml") {
         Ok(p) => p,
         Err(e) => {
             eprintln!("Failed to load puzzle: {}", e);
