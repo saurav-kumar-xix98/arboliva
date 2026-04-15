@@ -3,4 +3,4 @@ pub mod constraint_set;
 mod variants;
 mod active_positions_set;
 mod helpers;
-mod builder;
+pub(crate) mod builder;

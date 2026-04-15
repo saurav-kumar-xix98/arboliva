@@ -1,4 +1,3 @@
-use crate::constants::{REGION_SIZE, GRID_SIZE};
 use crate::constraints::constraint::Constraint;
 use crate::constraints::helpers;
 use crate::grid::{CandidateCell, Grid, Position};
@@ -12,33 +11,37 @@ impl Constraint for ClassicConstraint {
     ) -> Option<Grid<bool>> {
         
         println!("ClassicConstraint::update");
+        
+        let grid_size = grid.grid_size();
+        let region_rows = grid.region_rows();
+        let region_cols = grid.region_cols();
 
         helpers::update_grid_for_position(grid, active_positions, |pos| -> Vec<Position> {
             let mut positions_to_update = Vec::new();
 
-            let row = pos.row;
-            let col = pos.col;
+            let active_row = pos.row;
+            let active_col = pos.col;
 
-            for r in 0..GRID_SIZE {
-                let pos = Position{row: r, col};
-                if r != row {
+            for row in 0..grid_size {
+                let pos = Position{row, col: active_col };
+                if row != active_row {
                     positions_to_update.push(pos);
                 }
             }
 
-            for c in 0..GRID_SIZE {
-                let pos = Position{row, col: c};
-                if c != col {
+            for col in 0..grid_size {
+                let pos = Position{ row: active_row, col };
+                if col != active_col {
                     positions_to_update.push(pos);
                 }
             }
 
-            let region_row = (row / REGION_SIZE) * REGION_SIZE;
-            let region_col = (col / REGION_SIZE) * REGION_SIZE;
-            for r in region_row..region_row + REGION_SIZE {
-                for c in region_col..region_col + REGION_SIZE {
-                    let pos = Position{row: r, col: c};
-                    if r != row && c != col {
+            let region_row = (active_row / region_rows) * region_rows;
+            let region_col = (active_col / region_cols) * region_cols;
+            for row in region_row..region_row + region_rows {
+                for col in region_col..region_col + region_cols {
+                    let pos = Position{row, col };
+                    if row != active_row && col != active_col {
                         positions_to_update.push(pos);
                     }
                 }

@@ -1,6 +1,6 @@
 use crate::constraints::active_positions_set::ActivePositionsSet;
-use crate::constraints::{builder, helpers};
 use crate::constraints::constraint::Constraint;
+use crate::constraints::helpers;
 use crate::grid::{CandidateCell, Grid};
 
 pub struct ConstraintSet {
@@ -9,17 +9,8 @@ pub struct ConstraintSet {
 
 impl ConstraintSet {
 
-    pub fn from_yaml_values(raw: Vec<serde_yaml::Value>) -> Result<Self, String> {
-        let mut set = ConstraintSet { constraints: Vec::new() };
-        for c in raw {
-            let constraint = builder::to_constraint(&c)?;
-            set.add_constraint(constraint);
-        }
-        Ok(set)
-    }
-
-    pub fn add_constraint(&mut self, constraint: Box<dyn Constraint>) {
-        self.constraints.push(constraint);
+    pub fn new(constraints: Vec<Box<dyn Constraint>>) -> Self {
+        ConstraintSet { constraints }
     }
 
     pub fn update(&self,
@@ -38,8 +29,7 @@ impl ConstraintSet {
             };
         }
 
-        let mut active_positions_set = ActivePositionsSet::new(self.constraints.len());
-        active_positions_set.push(active_positions);
+        let mut active_positions_set = ActivePositionsSet::new(self.constraints.len(), active_positions);
 
         loop {
             for constraint in &self.constraints {

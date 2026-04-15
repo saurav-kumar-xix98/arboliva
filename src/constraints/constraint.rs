@@ -8,7 +8,7 @@ pub trait Constraint {
         mut active_positions: Grid<bool>
     ) -> Option<Grid<bool>> {
         
-        let mut affected_positions  = Grid::from_default(false);
+        let mut affected_positions  = grid.map(|_| false);
 
         while helpers::is_any_true(&active_positions) {
             let newly_affected_positions = self.update(grid, active_positions)?;

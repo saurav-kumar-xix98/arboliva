@@ -1,16 +1,10 @@
-use crate::constants::GRID_SIZE;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CandidateCell {
     FixedValue(usize),
-    ValidCandidates([bool; GRID_SIZE]),
+    ValidCandidates(Vec<bool>),
 }
 
 impl CandidateCell {
-    pub fn new() -> Self {
-        Self::ValidCandidates([true; GRID_SIZE])
-    }
-
     pub fn contains(&self, candidate: usize) -> bool {
         match self {
             Self::FixedValue(fixed_value) => fixed_value == &candidate,
@@ -30,15 +24,22 @@ impl CandidateCell {
             Self::FixedValue(_) => panic!("Cannot remove fixed"),
             Self::ValidCandidates(valid_candidates) => {
                 valid_candidates[candidate - 1] = false;
-                let count = valid_candidates.iter().filter(|&&c| c).count();
-                if count == 1 {
-                    for i in 0..GRID_SIZE {
-                        if valid_candidates[i] {
-                            *self = Self::FixedValue(i + 1);
+                let mut found = None;
+                for i in 0..valid_candidates.len() {
+                    if valid_candidates[i] {
+                        if found.is_some() {
                             return;
                         }
+                        found = Some(i + 1);
                     }
-                    panic!("Shouldn't happen");
+                }
+                match found {
+                    Some(value) => {
+                        *self = Self::FixedValue(value);
+                    }
+                    None => {
+                        panic!("Should not happen");
+                    }
                 }
             }
         }
@@ -51,11 +52,11 @@ mod tests {
 
     #[test]
     fn new_cell_has_all_candidates() {
-        let cell = CandidateCell::new();
+        let cell = CandidateCell::ValidCandidates(vec![true; 9]);
 
         if let CandidateCell::ValidCandidates(bits) = cell {
-            for i in 1..=GRID_SIZE {
-                assert!(bits[i - 1]);
+            for i in 0..9 {
+                assert!(bits[i]);
             }
         } else {
             panic!("Expected ValidCandidates");
@@ -64,16 +65,16 @@ mod tests {
 
     #[test]
     fn contains_works_for_valid_candidates() {
-        let cell = CandidateCell::new();
+        let cell = CandidateCell::ValidCandidates(vec![true; 9]);
 
         assert!(cell.contains(1));
-        assert!(cell.contains(GRID_SIZE));
-        assert!(cell.contains(GRID_SIZE / 2));
+        assert!(cell.contains(9));
+        assert!(cell.contains(4));
     }
 
     #[test]
     fn remove_eliminates_candidate() {
-        let mut cell = CandidateCell::new();
+        let mut cell = CandidateCell::ValidCandidates(vec![true; 9]);
 
         cell.remove(3);
         assert!(!cell.contains(3));
@@ -85,16 +86,16 @@ mod tests {
 
     #[test]
     fn len_matches_number_of_bits_set() {
-        let mut cell = CandidateCell::new();
+        let mut cell = CandidateCell::ValidCandidates(vec![true; 9]);
 
         let initial_len = cell.len();
-        assert_eq!(initial_len, GRID_SIZE);
+        assert_eq!(initial_len, 9);
 
         cell.remove(1);
-        assert_eq!(cell.len(), GRID_SIZE - 1);
+        assert_eq!(cell.len(), 8);
 
         cell.remove(2);
-        assert_eq!(cell.len(), GRID_SIZE - 2);
+        assert_eq!(cell.len(), 7);
     }
 
     #[test]
@@ -117,7 +118,7 @@ mod tests {
 
     #[test]
     fn removing_same_candidate_twice_is_safe() {
-        let mut cell = CandidateCell::new();
+        let mut cell = CandidateCell::ValidCandidates(vec![true; 9]);
 
         cell.remove(1);
         let len_after_first = cell.len();

@@ -1,8 +1,8 @@
 use crate::solver::Puzzle;
 use std::error::Error;
 use std::fs;
+use crate::constraints::builder::to_puzzle;
 
-mod constants;
 mod constraints;
 mod grid;
 mod solver;
@@ -11,7 +11,7 @@ pub fn load_puzzle(path: &str) -> Result<Puzzle, Box<dyn Error>> {
     let yaml_str = fs::read_to_string(path)?;
     let yaml_value = serde_yaml::from_str(&yaml_str)?;
 
-    let puzzle = Puzzle::from_yaml(&yaml_value)?;
+    let puzzle = to_puzzle(yaml_value)?;
 
     Ok(puzzle)
 }

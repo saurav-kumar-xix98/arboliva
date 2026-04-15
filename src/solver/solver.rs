@@ -1,52 +1,32 @@
-use crate::constants::GRID_SIZE;
 use crate::constraints::constraint_set::ConstraintSet;
 use crate::grid::{CandidateCell, Grid, Position};
 use crate::solver::puzzle::Puzzle;
 
 fn to_candidate_grid(puzzle: Grid<Option<usize>>) -> Grid<CandidateCell> {
-    let mut candidate_grid = Grid::from_default(CandidateCell::new());
-
-    for row in 0..GRID_SIZE {
-        for col in 0..GRID_SIZE {
-            let pos = Position{row, col};
-            candidate_grid[pos] = match puzzle[pos] {
-                Some(value) => CandidateCell::FixedValue(value),
-                None => CandidateCell::new()
-            }
-        }
-    }
-
-    candidate_grid
+    puzzle.map(|cell| match cell {
+        Some(value) => CandidateCell::FixedValue(*value),
+        None => CandidateCell::ValidCandidates(vec![true; puzzle.grid_size()])
+    })
 }
 
 fn from_candidate_grid(candidate_grid: Grid<CandidateCell>) -> Grid<usize> {
-    let mut solution = Grid::from_default(0);
-
-    for row in 0..GRID_SIZE {
-        for col in 0..GRID_SIZE {
-            let pos = Position{row, col};
-            solution[pos] = match candidate_grid[pos] {
-                CandidateCell::FixedValue(value) => value,
-                _ => panic!("CandidateCell is not fixed")
-            }
-        }
-    }
-
-    solution
+    candidate_grid.map(|cell| match cell {
+        CandidateCell::FixedValue(value) => *value,
+        _ => panic!("CandidateCell is not fixed")
+    })
 }
 
 fn find_best_candidate(grid: &Grid<CandidateCell>) -> Option<Position> {
     let mut best_position: Option<Position> = None;
-    let mut best_count = GRID_SIZE + 1;
+    let mut best_count = grid.grid_size() + 1;
 
     println!("Best count: {}", best_count);
 
-    for row in 0..GRID_SIZE {
-        for col in 0..GRID_SIZE {
+    for row in 0..grid.grid_size() {
+        for col in 0..grid.grid_size() {
             let pos = Position{row, col};
-            let cell = grid[pos];
 
-            let count = cell.len();
+            let count = grid[pos].len();
 
             println!("Position {} Count {}", pos, count);
             if (count < best_count) && (count > 1) {
@@ -78,14 +58,14 @@ fn solve_recursive(grid: &mut Grid<CandidateCell>,
 
     println!("Best candidate: {}", position);
 
-    for value in 1..=GRID_SIZE {
+    for value in 1..=grid.grid_size() {
         if !grid[position].contains(value) {
             continue;
         }
 
         let mut new_grid = grid.clone();
         new_grid[position] = CandidateCell::FixedValue(value);
-        let mut active_positions = Grid::from_default(false);
+        let mut active_positions = grid.map(|_| false);
         active_positions[position] = true;
 
         println!("Guessing value {} at {}", value, position);
@@ -100,8 +80,8 @@ fn solve_recursive(grid: &mut Grid<CandidateCell>,
 }
 
 pub fn solve(puzzle: Puzzle) -> Option<Grid<usize>> {
+    let active_positions = puzzle.grid.map(|_| true);
     let mut candidate_grid = to_candidate_grid(puzzle.grid);
-    let active_positions = Grid::from_default(true);
 
     println!("{}", candidate_grid);
 

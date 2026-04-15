@@ -1,20 +1,14 @@
 grid:
-  - [0,0,0,0,0,0,0,0,0]
-  - [0,0,0,0,0,0,0,0,0]
-  - [0,0,0,0,0,0,0,0,0]
-  - [0,0,0,0,0,0,0,0,0]
-  - [0,0,0,0,0,0,0,0,0]
-  - [0,0,0,0,0,0,0,0,0]
-  - [0,0,0,0,0,0,0,0,0]
-  - [0,0,0,0,0,0,0,0,0]
-  - [0,0,0,0,0,0,0,0,0]
+  region_rows: 3
+  region_cols: 3
+  cells: []
 constraint_set:
   - type: classic
   - type: anti_knight
   - type: little_killer
     diagonals:
       - sum: 39
-        first: [1,1]
+        first_position: [1,1]
         direction: down_right
   - type: killer
     cages:
