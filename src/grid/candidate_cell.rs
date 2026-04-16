@@ -1,48 +1,45 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CandidateCell {
-    FixedValue(usize),
-    ValidCandidates(Vec<bool>),
+pub struct CandidateCell {
+    bitmask: u64,
 }
 
 impl CandidateCell {
-    pub fn contains(&self, candidate: usize) -> bool {
-        match self {
-            Self::FixedValue(fixed_value) => fixed_value == &candidate,
-            Self::ValidCandidates(valid_candidates) => valid_candidates[candidate - 1],
+    pub fn with_count(count: u8) -> Self {
+        Self {
+            bitmask: (1u64 << count) - 1,
         }
     }
 
-    pub fn len(&self) -> usize {
-        match self {
-            Self::FixedValue(_) => 1,
-            Self::ValidCandidates(valid_candidates) => valid_candidates.iter().filter(|c| **c).count(),
+    pub fn with_value(value: u8) -> Self {
+        Self {
+            bitmask: Self::mask_for(value),
         }
     }
 
-    pub fn remove(&mut self, candidate: usize) {
-        match self {
-            Self::FixedValue(_) => panic!("Cannot remove fixed"),
-            Self::ValidCandidates(valid_candidates) => {
-                valid_candidates[candidate - 1] = false;
-                let mut found = None;
-                for i in 0..valid_candidates.len() {
-                    if valid_candidates[i] {
-                        if found.is_some() {
-                            return;
-                        }
-                        found = Some(i + 1);
-                    }
-                }
-                match found {
-                    Some(value) => {
-                        *self = Self::FixedValue(value);
-                    }
-                    None => {
-                        panic!("Should not happen");
-                    }
-                }
-            }
+    pub fn contains(&self, value: u8) -> bool {
+        self.bitmask & Self::mask_for(value) != 0
+    }
+
+    pub fn len(&self) -> u8 {
+        self.bitmask.count_ones() as u8
+    }
+
+    pub fn remove(&mut self, value: u8) {
+        if !self.contains(value) {
+            return;
         }
+        self.bitmask ^= Self::mask_for(value);
+    }
+
+    pub fn fixed_value(&self) -> Option<u8> {
+        if self.len() != 1 {
+            return None;
+        }
+        return Some((self.bitmask.trailing_zeros() + 1) as u8);
+    }
+
+    fn mask_for(value: u8) -> u64 {
+        1 << (value - 1)
     }
 }
 
@@ -51,79 +48,65 @@ mod tests {
     use super::*;
 
     #[test]
-    fn new_cell_has_all_candidates() {
-        let cell = CandidateCell::ValidCandidates(vec![true; 9]);
+    fn with_count_sets_correct_low_bits() {
+        let c = CandidateCell::with_count(3);
 
-        if let CandidateCell::ValidCandidates(bits) = cell {
-            for i in 0..9 {
-                assert!(bits[i]);
+        assert!(c.contains(1));
+        assert!(c.contains(2));
+        assert!(c.contains(3));
+
+        assert!(!c.contains(4));
+        assert_eq!(c.len(), 3);
+    }
+
+    #[test]
+    fn fixed_sets_single_value() {
+        let c = CandidateCell::with_value(5);
+
+        for i in 1..=16 {
+            if i == 5 {
+                assert!(c.contains(i));
+            } else {
+                assert!(!c.contains(i));
             }
-        } else {
-            panic!("Expected ValidCandidates");
         }
+
+        assert_eq!(c.len(), 1);
     }
 
     #[test]
-    fn contains_works_for_valid_candidates() {
-        let cell = CandidateCell::ValidCandidates(vec![true; 9]);
+    fn remove_candidate_reduces_size() {
+        let mut c = CandidateCell::with_count(5);
 
-        assert!(cell.contains(1));
-        assert!(cell.contains(9));
-        assert!(cell.contains(4));
+        assert_eq!(c.len(), 5);
+
+        c.remove(3);
+
+        assert!(!c.contains(3));
+        assert_eq!(c.len(), 4);
     }
 
     #[test]
-    fn remove_eliminates_candidate() {
-        let mut cell = CandidateCell::ValidCandidates(vec![true; 9]);
+    fn remove_nonexistent_candidate_does_nothing() {
+        let mut c = CandidateCell::with_count(3);
 
-        cell.remove(3);
-        assert!(!cell.contains(3));
+        c.remove(10); // should not panic or change anything
 
-        // other values should still exist
-        assert!(cell.contains(2));
-        assert!(cell.contains(4));
+        assert_eq!(c.len(), 3);
     }
 
     #[test]
-    fn len_matches_number_of_bits_set() {
-        let mut cell = CandidateCell::ValidCandidates(vec![true; 9]);
+    fn multiple_removes_work_correctly() {
+        let mut c = CandidateCell::with_count(6);
 
-        let initial_len = cell.len();
-        assert_eq!(initial_len, 9);
+        c.remove(1);
+        c.remove(2);
+        c.remove(6);
 
-        cell.remove(1);
-        assert_eq!(cell.len(), 8);
-
-        cell.remove(2);
-        assert_eq!(cell.len(), 7);
-    }
-
-    #[test]
-    fn fixed_value_behaves_correctly() {
-        let cell = CandidateCell::FixedValue(5);
-
-        assert!(cell.contains(5));
-        assert!(!cell.contains(4));
-        assert!(!cell.contains(6));
-
-        assert_eq!(cell.len(), 1);
-    }
-
-    #[test]
-    #[should_panic(expected = "Cannot remove fixed")]
-    fn removing_fixed_value_panics() {
-        let mut cell = CandidateCell::FixedValue(1);
-        cell.remove(1);
-    }
-
-    #[test]
-    fn removing_same_candidate_twice_is_safe() {
-        let mut cell = CandidateCell::ValidCandidates(vec![true; 9]);
-
-        cell.remove(1);
-        let len_after_first = cell.len();
-
-        cell.remove(1); // should not panic
-        assert_eq!(cell.len(), len_after_first);
+        assert_eq!(c.len(), 3);
+        assert!(!c.contains(1));
+        assert!(!c.contains(2));
+        assert!(!c.contains(6));
+        assert!(c.contains(3));
     }
 }

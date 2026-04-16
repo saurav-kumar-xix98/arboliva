@@ -9,10 +9,10 @@ impl Constraint for ClassicConstraint {
         grid: &mut Grid<CandidateCell>,
         active_positions: Grid<bool>
     ) -> Option<Grid<bool>> {
-        
+
         println!("ClassicConstraint::update");
-        
-        let grid_size = grid.grid_size();
+
+        let grid_size = grid.size();
         let region_rows = grid.region_rows();
         let region_cols = grid.region_cols();
 
@@ -46,9 +46,9 @@ impl Constraint for ClassicConstraint {
                     }
                 }
             }
-            
+
             positions_to_update
-            
+
         })
     }
 }

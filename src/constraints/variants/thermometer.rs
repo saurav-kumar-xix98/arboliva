@@ -1,5 +1,6 @@
 use crate::constraints::constraint::Constraint;
 use crate::grid::{CandidateCell, Grid, Position};
+use crate::grid::grid::RegionShape;
 
 pub struct Thermometer {
     pub positions: Vec<Position>,
@@ -11,8 +12,8 @@ pub struct ThermometerConstraint {
 }
 
 impl ThermometerConstraint {
-    pub fn new(thermometers : Vec<Thermometer>, region_rows: usize, region_cols: usize) -> ThermometerConstraint {
-        let mut thermometer_indices = Grid::from_default(region_rows, region_cols, vec![]);
+    pub fn new(thermometers : Vec<Thermometer>, region_rows: u8, region_cols: u8) -> ThermometerConstraint {
+        let mut thermometer_indices = Grid::from_default(RegionShape{ region_rows, region_cols }, vec![]);
 
         for i in 0..thermometers.len() {
             for pos in &thermometers[i].positions {
@@ -30,8 +31,8 @@ impl Constraint for ThermometerConstraint {
 
         let mut is_thermometer_active = vec![false; self.thermometers.len()];
 
-        for row in 0..grid.grid_size() {
-            for col in 0..grid.grid_size() {
+        for row in 0..grid.size() {
+            for col in 0..grid.size() {
                 let pos = Position{row, col};
                 if active_positions[pos] {
                     for thermometer_index in &self.thermometer_indices[pos] {
@@ -50,7 +51,7 @@ impl Constraint for ThermometerConstraint {
 
             let thermometer = &self.thermometers[i];
             let thermometer_size = thermometer.positions.len();
-            let mut updated_candidates = vec![vec![false; grid.grid_size()]; thermometer_size];
+            let mut updated_candidates = vec![vec![false; grid.size() as usize]; thermometer_size];
 
             if !recursive_solve(grid, &thermometer.positions, &mut updated_candidates, 0, 1) {
                 print!("Thermometer cannot be solved: ");
@@ -62,9 +63,9 @@ impl Constraint for ThermometerConstraint {
             }
 
             for i in 0..thermometer_size {
-                for val in 1..=grid.grid_size() {
+                for val in 1..=grid.size() {
                     let pos = thermometer.positions[i];
-                    if !updated_candidates[i][val - 1] && grid[pos].contains(val) {
+                    if !updated_candidates[i][val as usize - 1] && grid[pos].contains(val) {
                         println!("Removing {} from {}", val, pos);
                         grid[pos].remove(val);
                         affected_positions[pos] = true;
@@ -81,7 +82,7 @@ fn recursive_solve(grid: &mut Grid<CandidateCell>,
                    thermometer_positions: &Vec<Position>,
                    updated_candidates: &mut Vec<Vec<bool>>,
                    index: usize,
-                   lower_limit: usize
+                   lower_limit: u8
 ) -> bool {
     if index == thermometer_positions.len() {
         return true;
@@ -90,9 +91,9 @@ fn recursive_solve(grid: &mut Grid<CandidateCell>,
     let mut is_possible = false;
 
     let pos = thermometer_positions[index];
-    for val in lower_limit..=grid.grid_size() {
-        let i = val - 1;
-        if i + thermometer_positions.len() - index > grid.grid_size() {
+    for val in lower_limit..=grid.size() {
+        let i = val as usize - 1;
+        if i + thermometer_positions.len() - index > grid.size() as usize {
             break;
         }
         if !grid[pos].contains(val) {

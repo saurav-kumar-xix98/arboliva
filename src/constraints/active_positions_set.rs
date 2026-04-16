@@ -31,10 +31,10 @@ impl ActivePositionsSet {
     pub fn aggregate(&self) -> Grid<bool> {
         (&self.counter).map(|&cell| cell > 0)
     }
-    
+
     pub fn set_max_capacity(&mut self, new_capacity: usize) {
         self.max_capacity = new_capacity;
-        
+
         while self.history.len() > self.max_capacity {
             let old_entry = self.history.pop_front().unwrap();
             (&mut self.counter).zip_apply(&old_entry, |count, &active| { *count -= active as usize; });

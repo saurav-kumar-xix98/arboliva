@@ -5,6 +5,7 @@ use crate::constraints::variants::{AntiKnightConstraint, ClassicConstraint, Kill
 use crate::grid::{Grid, Position};
 use serde_yaml::Value;
 use crate::constraints::constraint_set::ConstraintSet;
+use crate::grid::grid::RegionShape;
 use crate::solver::Puzzle;
 
 pub fn to_puzzle(value: Value) -> Result<Puzzle, String> {
@@ -14,24 +15,23 @@ pub fn to_puzzle(value: Value) -> Result<Puzzle, String> {
     Ok(Puzzle { grid, constraint_set })
 }
 
-pub fn to_grid(value: Value) -> Result<Grid<Option<usize>>, String> {
-    let region_rows = to_usize(get_required(&value, "region_rows")?)?;
-    let region_cols = to_usize(get_required(&value, "region_cols")?)?;
+pub fn to_grid(value: Value) -> Result<Grid<Option<u8>>, String> {
+    let region_rows = to_u8(get_required(&value, "region_rows")?)?;
+    let region_cols = to_u8(get_required(&value, "region_cols")?)?;
 
-    let grid_size = region_rows * region_cols;
-    let mut grid = Grid::from_default(region_rows, region_cols, None);
+    let mut grid = Grid::from_default(RegionShape{ region_rows, region_cols }, None);
 
     let cells = to_vec(get_required(&value, "cells")?)?;
 
     for cell in cells {
         let pos = to_position(get_required(&cell, "position")?)?;
-        let val = to_usize(get_required(&cell,"value")?)?;
+        let val = to_u8(get_required(&cell, "value")?)?;
 
-        if pos.row >= grid_size || pos.col >= grid_size {
+        if pos.row >= grid.size() || pos.col >= grid.size() {
             return Err(format!("invalid position {}", pos));
         }
 
-        if val == 0 || val > grid_size {
+        if val == 0 || val > grid.size() {
             return Err(format!("invalid value {} at position {}", val, pos));
         }
 
@@ -45,7 +45,7 @@ pub fn to_grid(value: Value) -> Result<Grid<Option<usize>>, String> {
     Ok(grid)
 }
 
-pub fn to_constraint_set(value: Value, grid: &Grid<Option<usize>>) -> Result<ConstraintSet, String> {
+pub fn to_constraint_set(value: Value, grid: &Grid<Option<u8>>) -> Result<ConstraintSet, String> {
     let raw_constraints = to_vec(value)?;
 
     let constraints = raw_constraints
@@ -56,7 +56,7 @@ pub fn to_constraint_set(value: Value, grid: &Grid<Option<usize>>) -> Result<Con
     Ok(ConstraintSet::new(constraints))
 }
 
-pub fn to_constraint(value: &Value, grid: &Grid<Option<usize>>) -> Result<Box<dyn Constraint>, String> {
+pub fn to_constraint(value: &Value, grid: &Grid<Option<u8>>) -> Result<Box<dyn Constraint>, String> {
     let constraint_type = to_string(get_required(value, "type")?)?;
 
     match constraint_type.as_str() {
@@ -69,11 +69,11 @@ pub fn to_constraint(value: &Value, grid: &Grid<Option<usize>>) -> Result<Box<dy
     }
 }
 
-fn to_killer_constraint(value: &Value, grid: &Grid<Option<usize>>) -> Result<KillerConstraint, String> {
+fn to_killer_constraint(value: &Value, grid: &Grid<Option<u8>>) -> Result<KillerConstraint, String> {
     let cages_yaml = to_vec(get_required(value, "cages")?)?;
     let cages = cages_yaml.into_iter()
         .map(|cage_yaml| {
-            let sum = to_usize(get_required(&cage_yaml, "sum")?)?;
+            let sum = to_u16(get_required(&cage_yaml, "sum")?)?;
             let positions = to_vec_position(get_required(&cage_yaml, "positions")?)?;
             Ok(killer::Cage { sum, positions })
         })
@@ -82,11 +82,11 @@ fn to_killer_constraint(value: &Value, grid: &Grid<Option<usize>>) -> Result<Kil
     Ok(KillerConstraint::new(cages, grid.region_rows(), grid.region_cols()))
 }
 
-fn to_little_killer_constraint(value: &Value, grid: &Grid<Option<usize>>) -> Result<LittleKillerConstraint, String> {
+fn to_little_killer_constraint(value: &Value, grid: &Grid<Option<u8>>) -> Result<LittleKillerConstraint, String> {
     let diagonals_yaml = to_vec(get_required(&value, "diagonals")?)?;
     let diagonals = diagonals_yaml.into_iter()
         .map(|diag_yaml| {
-            let sum = to_usize(get_required(&diag_yaml, "sum")?)?;
+            let sum = to_u16(get_required(&diag_yaml, "sum")?)?;
             let direction = match to_string(get_required(&diag_yaml, "direction")?)?.as_str() {
                 "down_right" => little_killer::Direction::DownRight,
                 "down_left" => little_killer::Direction::DownLeft,
@@ -95,14 +95,14 @@ fn to_little_killer_constraint(value: &Value, grid: &Grid<Option<usize>>) -> Res
                 other => return Err(format!("invalid direction: {}", other)),
             };
             let first_position = to_position(get_required(&diag_yaml, "first_position")?)?;
-            Ok(little_killer::Diagonal::new(sum, direction, first_position, grid.grid_size()))
+            Ok(little_killer::Diagonal::new(sum, direction, first_position, grid.size()))
         })
         .collect::<Result<Vec<little_killer::Diagonal>, String>>()?;
 
     Ok(LittleKillerConstraint::new(diagonals, grid.region_rows(), grid.region_cols()))
 }
 
-fn to_thermometer_constraint(value: &Value, grid: &Grid<Option<usize>>) -> Result<ThermometerConstraint, String> {
+fn to_thermometer_constraint(value: &Value, grid: &Grid<Option<u8>>) -> Result<ThermometerConstraint, String> {
     let thermometers_yaml = to_vec(get_required(value, "thermometers")?)?;
     let thermometers = thermometers_yaml.into_iter()
         .map(|thermometer_yaml| {
@@ -114,8 +114,16 @@ fn to_thermometer_constraint(value: &Value, grid: &Grid<Option<usize>>) -> Resul
     Ok(ThermometerConstraint::new(thermometers, grid.region_rows(), grid.region_cols()))
 }
 
-fn to_usize(value: Value) -> Result<usize, String> {
-    Ok(value.as_u64().ok_or_else(|| format!("invalid usize value: {:?}", value))? as usize)
+fn to_u8(value: Value) -> Result<u8, String> {
+    u8::try_from(to_u64(value)?).map_err(|_| "value out of range for u8".to_string())
+}
+
+fn to_u16(value: Value) -> Result<u16, String> {
+    u16::try_from(to_u64(value)?).map_err(|_| "value out of range for u16".to_string())
+}
+
+fn to_u64(value: Value) -> Result<u64, String> {
+    value.as_u64().ok_or_else(|| format!("invalid value: {:?}", value))
 }
 
 fn to_string(value: Value) -> Result<String, String> {
@@ -136,8 +144,8 @@ fn to_position(value: Value) -> Result<Position, String> {
         return Err("Position must have exactly 2 elements".to_string());
     }
 
-    let row = to_usize(seq[0].clone())?.checked_sub(1).ok_or_else(|| "")?;
-    let col = to_usize(seq[1].clone())?.checked_sub(1).ok_or_else(|| "")?;
+    let row = to_u8(seq[0].clone())?.checked_sub(1).ok_or_else(|| "")?;
+    let col = to_u8(seq[1].clone())?.checked_sub(1).ok_or_else(|| "")?;
     Ok(Position{row, col})
 }
 
