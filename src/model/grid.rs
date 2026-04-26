@@ -1,13 +1,7 @@
+use crate::model::{CandidateCell, Position, RegionShape};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::ops::{Index, IndexMut};
-use crate::grid::{CandidateCell, Position};
-
-#[derive(Debug, Clone)]
-pub struct RegionShape {
-    pub region_rows: u8,
-    pub region_cols: u8,
-}
 
 #[derive(Debug, Clone)]
 pub struct Grid<Cell> {

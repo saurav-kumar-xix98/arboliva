@@ -1,4 +1,4 @@
-use crate::grid::Grid;
+use crate::model::Grid;
 
 pub struct ActivePositionsSet {
     counter: Grid<usize>,

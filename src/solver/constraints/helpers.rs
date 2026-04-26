@@ -1,4 +1,4 @@
-use crate::grid::{CandidateCell, Grid, Position};
+use crate::model::{CandidateCell, Grid, Position};
 
 pub fn is_any_true(grid: &Grid<bool>) -> bool {
     for row in 0..grid.size() {

@@ -1,6 +1,5 @@
-use crate::constraints::constraint_set::ConstraintSet;
-use crate::grid::{CandidateCell, Grid, Position};
-use crate::solver::puzzle::Puzzle;
+use crate::model::{CandidateCell, Grid, Position, Puzzle};
+use crate::solver::constraints::constraint_set::ConstraintSet;
 
 fn to_candidate_grid(puzzle: Grid<Option<u8>>) -> Grid<CandidateCell> {
     puzzle.map(|cell| match cell {

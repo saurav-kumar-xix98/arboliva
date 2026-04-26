@@ -1,7 +1,7 @@
-use crate::constraints::active_positions_set::ActivePositionsSet;
-use crate::constraints::constraint::Constraint;
-use crate::constraints::helpers;
-use crate::grid::{CandidateCell, Grid};
+use crate::model::{CandidateCell, Grid};
+use crate::solver::constraints::active_positions_set::ActivePositionsSet;
+use crate::solver::constraints::constraint::Constraint;
+use crate::solver::constraints::helpers;
 
 pub struct ConstraintSet {
     constraints: Vec<Box<dyn Constraint>>,

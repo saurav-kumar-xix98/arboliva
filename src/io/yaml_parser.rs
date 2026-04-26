@@ -1,21 +1,30 @@
-use crate::constraints::constraint::Constraint;
-use crate::constraints::variants::thermometer::Thermometer;
-use crate::constraints::variants::{killer, little_killer};
-use crate::constraints::variants::{AntiKnightConstraint, ClassicConstraint, KillerConstraint, LittleKillerConstraint, ThermometerConstraint};
-use crate::grid::{Grid, Position};
+use crate::model::{Grid, Position, Puzzle, RegionShape};
+use crate::solver::constraints::constraint::Constraint;
+use crate::solver::constraints::constraint_set::ConstraintSet;
+use crate::solver::constraints::variants::thermometer::Thermometer;
+use crate::solver::constraints::variants::{killer, little_killer};
+use crate::solver::constraints::variants::{AntiKnightConstraint, ClassicConstraint, KillerConstraint, LittleKillerConstraint, ThermometerConstraint};
 use serde_yaml::Value;
-use crate::constraints::constraint_set::ConstraintSet;
-use crate::grid::grid::RegionShape;
-use crate::solver::Puzzle;
+use std::error::Error;
+use std::fs;
 
-pub fn to_puzzle(value: Value) -> Result<Puzzle, String> {
+pub fn load_puzzle(path: &str) -> Result<Puzzle, Box<dyn Error>> {
+    let yaml_str = fs::read_to_string(path)?;
+    let yaml_value = serde_yaml::from_str(&yaml_str)?;
+
+    let puzzle = to_puzzle(yaml_value)?;
+
+    Ok(puzzle)
+}
+
+fn to_puzzle(value: Value) -> Result<Puzzle, String> {
     let grid = to_grid(get_required(&value, "grid")?)?;
     let constraint_set = to_constraint_set(get_required(&value, "constraint_set")?, &grid)?;
 
     Ok(Puzzle { grid, constraint_set })
 }
 
-pub fn to_grid(value: Value) -> Result<Grid<Option<u8>>, String> {
+fn to_grid(value: Value) -> Result<Grid<Option<u8>>, String> {
     let region_rows = to_u8(get_required(&value, "region_rows")?)?;
     let region_cols = to_u8(get_required(&value, "region_cols")?)?;
 
@@ -45,7 +54,7 @@ pub fn to_grid(value: Value) -> Result<Grid<Option<u8>>, String> {
     Ok(grid)
 }
 
-pub fn to_constraint_set(value: Value, grid: &Grid<Option<u8>>) -> Result<ConstraintSet, String> {
+fn to_constraint_set(value: Value, grid: &Grid<Option<u8>>) -> Result<ConstraintSet, String> {
     let raw_constraints = to_vec(value)?;
 
     let constraints = raw_constraints
@@ -56,7 +65,7 @@ pub fn to_constraint_set(value: Value, grid: &Grid<Option<u8>>) -> Result<Constr
     Ok(ConstraintSet::new(constraints))
 }
 
-pub fn to_constraint(value: &Value, grid: &Grid<Option<u8>>) -> Result<Box<dyn Constraint>, String> {
+fn to_constraint(value: &Value, grid: &Grid<Option<u8>>) -> Result<Box<dyn Constraint>, String> {
     let constraint_type = to_string(get_required(value, "type")?)?;
 
     match constraint_type.as_str() {
@@ -156,7 +165,7 @@ fn to_vec_position(value: Value) -> Result<Vec<Position>, String> {
         .collect::<Result<Vec<_>, _>>()
 }
 
-pub fn get_required(value: &Value, key: &str) -> Result<Value, String> {
+fn get_required(value: &Value, key: &str) -> Result<Value, String> {
     value.get(key)
         .cloned()
         .ok_or_else(|| format!("missing key '{}'", key))

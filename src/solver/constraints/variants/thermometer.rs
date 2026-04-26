@@ -1,6 +1,5 @@
-use crate::constraints::constraint::Constraint;
-use crate::grid::{CandidateCell, Grid, Position};
-use crate::grid::grid::RegionShape;
+use crate::model::{CandidateCell, Grid, Position, RegionShape};
+use crate::solver::constraints::constraint::Constraint;
 
 pub struct Thermometer {
     pub positions: Vec<Position>,
@@ -104,7 +103,6 @@ fn recursive_solve(grid: &mut Grid<CandidateCell>,
             updated_candidates[index][i] = true;
             is_possible = true;
         }
-
     }
 
     is_possible

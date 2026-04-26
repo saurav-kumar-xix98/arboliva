@@ -1,5 +1,4 @@
 pub mod solver;
-mod puzzle;
+pub mod constraints;
 
 pub use solver::solve;
-pub use puzzle::Puzzle;

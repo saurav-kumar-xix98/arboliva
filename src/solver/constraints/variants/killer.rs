@@ -1,6 +1,5 @@
-use crate::constraints::constraint::Constraint;
-use crate::grid::{CandidateCell, Grid, Position};
-use crate::grid::grid::RegionShape;
+use crate::model::{CandidateCell, Grid, Position, RegionShape};
+use crate::solver::constraints::constraint::Constraint;
 
 pub struct Cage {
     pub sum: u16,

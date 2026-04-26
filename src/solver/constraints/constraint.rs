@@ -1,5 +1,5 @@
-use crate::constraints::helpers;
-use crate::grid::{CandidateCell, Grid};
+use crate::model::{CandidateCell, Grid};
+use crate::solver::constraints::helpers;
 
 pub trait Constraint {
     fn update(&self, grid: &mut Grid<CandidateCell>, active_positions: Grid<bool>) -> Option<Grid<bool>>;
@@ -7,7 +7,7 @@ pub trait Constraint {
         grid: &mut Grid<CandidateCell>,
         mut active_positions: Grid<bool>
     ) -> Option<Grid<bool>> {
-        
+
         let mut affected_positions  = grid.map(|_| false);
 
         while helpers::is_any_true(&active_positions) {

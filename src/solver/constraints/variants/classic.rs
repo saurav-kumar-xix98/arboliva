@@ -1,6 +1,6 @@
-use crate::constraints::constraint::Constraint;
-use crate::constraints::helpers;
-use crate::grid::{CandidateCell, Grid, Position};
+use crate::model::{CandidateCell, Grid, Position};
+use crate::solver::constraints::constraint::Constraint;
+use crate::solver::constraints::helpers;
 
 pub struct ClassicConstraint;
 

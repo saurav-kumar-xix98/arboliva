@@ -1,5 +1,5 @@
-use crate::grid::Grid;
-use crate::constraints::constraint_set::ConstraintSet;
+use crate::model::Grid;
+use crate::solver::constraints::constraint_set::ConstraintSet;
 
 pub struct Puzzle {
     pub grid: Grid<Option<u8>>,
