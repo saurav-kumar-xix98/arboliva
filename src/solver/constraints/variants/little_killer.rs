@@ -1,9 +1,6 @@
 use crate::model::{CandidateCell, Grid, Position, RegionShape};
 use crate::solver::constraints::constraint::Constraint;
-
-pub enum Direction {
-    DownRight, DownLeft, UpRight, UpLeft,
-}
+use crate::model::clue;
 
 pub struct Diagonal {
     pub sum: u16,
@@ -16,20 +13,20 @@ pub struct LittleKillerConstraint {
 }
 
 impl Diagonal {
-    pub fn new (sum: u16, direction: Direction, first_position: Position, grid_size: u8) -> Diagonal {
+    pub fn new (sum: u16, direction: &clue::Direction, first_position: Position, grid_size: u8) -> Diagonal {
         let mut row = first_position.row;
         let mut col = first_position.col;
         match direction {
-            Direction::DownRight => {
+            clue::Direction::DownRight => {
                 assert!(row == 0 || col == 0, "");
             }
-            Direction::DownLeft => {
+            clue::Direction::DownLeft => {
                 assert!(row == 0 || col == grid_size - 1, "");
             }
-            Direction::UpRight => {
+            clue::Direction::UpRight => {
                 assert!(row == grid_size - 1 || col == 0, "");
             }
-            Direction::UpLeft => {
+            clue::Direction::UpLeft => {
                 assert!(row == grid_size - 1 || col == grid_size - 1, "");
             }
         }
@@ -38,13 +35,13 @@ impl Diagonal {
         loop {
             positions.push(Position{row, col});
             match direction {
-                Direction::DownRight | Direction::DownLeft => {
+                clue::Direction::DownRight | clue::Direction::DownLeft => {
                     if row == grid_size - 1 {
                         break;
                     }
                     row += 1;
                 }
-                Direction::UpRight | Direction::UpLeft => {
+                clue::Direction::UpRight | clue::Direction::UpLeft => {
                     if row == 0 {
                         break;
                     }
@@ -52,13 +49,13 @@ impl Diagonal {
                 }
             }
             match direction {
-                Direction::DownRight | Direction::UpRight => {
+                clue::Direction::DownRight | clue::Direction::UpRight => {
                     if col == grid_size - 1 {
                         break;
                     }
                     col += 1;
                 }
-                Direction::DownLeft | Direction::UpLeft => {
+                clue::Direction::DownLeft | clue::Direction::UpLeft => {
                     if col == 0 {
                         break;
                     }

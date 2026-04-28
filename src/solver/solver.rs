@@ -1,18 +1,22 @@
-use crate::model::{CandidateCell, Grid, Position, Puzzle};
+use crate::model::{CandidateCell, CandidateGrid, Clue, ClueType, Grid, Position, Puzzle, PuzzleGrid, Rule, SolutionGrid};
+use crate::solver::constraints::constraint::Constraint;
 use crate::solver::constraints::constraint_set::ConstraintSet;
+use crate::solver::constraints::variants::{killer, little_killer, thermometer, AntiKnightConstraint, ClassicConstraint, KillerConstraint, LittleKillerConstraint, ThermometerConstraint};
 
-fn to_candidate_grid(puzzle: Grid<Option<u8>>) -> Grid<CandidateCell> {
-    puzzle.map(|cell| match cell {
+fn to_candidate_grid(puzzle_grid: &PuzzleGrid) -> CandidateGrid {
+    let candidate_grid = puzzle_grid.map(|cell| match cell {
         Some(value) => CandidateCell::with_value(*value),
-        None => CandidateCell::with_count(puzzle.size())
-    })
+        None => CandidateCell::with_count(puzzle_grid.size())
+    });
+    candidate_grid
 }
 
-fn from_candidate_grid(candidate_grid: Grid<CandidateCell>) -> Grid<u8> {
-    candidate_grid.map(|cell| match cell.fixed_value() {
+fn from_candidate_grid(candidate_grid: CandidateGrid) -> SolutionGrid {
+    let solution_grid = candidate_grid.map(|cell| match cell.fixed_value() {
         Some(value) => value,
         None => panic!("CandidateCell is not solved")
-    })
+    });
+    solution_grid
 }
 
 fn find_best_candidate(grid: &Grid<CandidateCell>) -> Option<Position> {
@@ -32,6 +36,51 @@ fn find_best_candidate(grid: &Grid<CandidateCell>) -> Option<Position> {
     }
 
     best_position
+}
+
+fn to_constraint_set(puzzle: &Puzzle) -> ConstraintSet {
+    let mut constraints: Vec<Box<dyn Constraint>> = vec![Box::new(ClassicConstraint)];
+    let region_shape = puzzle.puzzle_grid.region_shape();
+    let grid_size = puzzle.puzzle_grid.size();
+    for rule in puzzle.rules.iter() {
+        match rule {
+            Rule::AntiKnight => constraints.push(Box::new(AntiKnightConstraint)),
+            Rule::Killer => {
+                let cages = match puzzle.clues.get(&ClueType::KillerCage) {
+                    Some(killer_cages) => killer_cages.iter().map(|clue| match clue {
+                        Clue::KillerCage(killer_cage) => killer::Cage{sum: killer_cage.target_sum, positions: killer_cage.cage_cells.clone()},
+                        _ => panic!("Expected KillerCage clue")
+                    }).collect(),
+                    None => panic!("Rules include Killer but Clues does not have KillerCage")
+                };
+                let killer_constraint = KillerConstraint::new(cages, region_shape.region_rows, region_shape.region_cols);
+                constraints.push(Box::new(killer_constraint));
+            },
+            Rule::LittleKiller => {
+                let diagonals = match puzzle.clues.get(&ClueType::LittleKillerArrow) {
+                    Some(little_killer_arrows) => little_killer_arrows.iter().map(|clue| match clue {
+                        Clue::LittleKillerArrow(little_killer_arrow) => little_killer::Diagonal::new(little_killer_arrow.target_sum, &little_killer_arrow.direction, little_killer_arrow.first_cell, grid_size),
+                        _ => panic!("Expected LittleKillerArrow clue")
+                    }).collect(),
+                    None => panic!("Rules include LittleKiller but Clues does not have LittleKillerArrow")
+                };
+                let little_killer_constraint = LittleKillerConstraint::new(diagonals, region_shape.region_rows, region_shape.region_cols);
+                constraints.push(Box::new(little_killer_constraint));
+            },
+            Rule::Thermometer => {
+                let thermometers = match puzzle.clues.get(&ClueType::Thermometer) {
+                    Some(thermometers) => thermometers.iter().map(|clue| match clue { 
+                        Clue::Thermometer(thermometer) => thermometer::Thermometer{positions: thermometer.thermometer_cells.clone()},
+                        _ => panic!("Expected Thermometer clue")
+                    }).collect(),
+                    None => panic!("Rules include Thermometer but Clues does not have Thermometer")
+                };
+                let thermometer_constraint = ThermometerConstraint::new(thermometers, region_shape.region_rows, region_shape.region_cols);
+                constraints.push(Box::new(thermometer_constraint));
+            }
+        }
+    }
+    ConstraintSet::new(constraints)
 }
 
 fn solve_recursive(grid: &mut Grid<CandidateCell>,
@@ -69,13 +118,14 @@ fn solve_recursive(grid: &mut Grid<CandidateCell>,
     false
 }
 
-pub fn solve(puzzle: Puzzle) -> Option<Grid<u8>> {
-    let active_positions = puzzle.grid.map(|_| true);
-    let mut candidate_grid = to_candidate_grid(puzzle.grid);
+pub fn solve(puzzle: &Puzzle) -> Option<SolutionGrid> {
+    let mut candidate_grid = to_candidate_grid(&puzzle.puzzle_grid);
+    let constraint_set = to_constraint_set(puzzle);
+    let active_positions = Grid::from_default(puzzle.puzzle_grid.region_shape(), true);
 
     println!("{}", candidate_grid);
 
-    if solve_recursive(&mut candidate_grid, &puzzle.constraint_set, active_positions) {
+    if solve_recursive(&mut candidate_grid, &constraint_set, active_positions) {
         Some(from_candidate_grid(candidate_grid))
     } else {
         None

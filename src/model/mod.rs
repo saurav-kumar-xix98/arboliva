@@ -1,11 +1,20 @@
 pub mod candidate_cell;
+pub mod clue;
+mod clue_type;
 pub mod grid;
 pub mod position;
 pub mod puzzle;
 pub mod region_shape;
+mod rule;
 
 pub use candidate_cell::CandidateCell;
+pub use clue::Clue;
+pub use clue_type::ClueType;
 pub use grid::Grid;
+pub use grid::CandidateGrid;
+pub use grid::PuzzleGrid;
+pub use grid::SolutionGrid;
 pub use position::Position;
 pub use puzzle::Puzzle;
 pub use region_shape::RegionShape;
+pub use rule::Rule;

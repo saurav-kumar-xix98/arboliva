@@ -2,37 +2,37 @@ grid:
   region_rows: 3
   region_cols: 3
   cells: []
-constraint_set:
-  - type: classic
-  - type: anti_knight
-  - type: little_killer
-    diagonals:
-      - sum: 39
-        first_position: [1,1]
-        direction: down_right
-  - type: killer
-    cages:
-      - sum: 7
-        positions: [[3,3], [4,3]]
-      - sum: 7
-        positions: [[3,4], [4,4]]
-      - sum: 7
-        positions: [[3,6], [3,7]]
-      - sum: 13
-        positions: [[4,5], [5,5]]
-      - sum: 13
-        positions: [[4,6], [5,6]]
-      - sum: 13
-        positions: [[4,7], [5,7]]
-      - sum: 13
-        positions: [[4,9], [5,9]]
-      - sum: 7
-        positions: [[6,3], [6,4]]
-      - sum: 7
-        positions: [[7,3], [7,4]]
-      - sum: 7
-        positions: [[6,6], [7,6]]
-      - sum: 7
-        positions: [[6,7], [7,7]]
-      - sum: 13
-        positions: [[9,4], [9,5]]
+rules:
+  - anti_knight
+  - little_killer
+  - killer
+clues:
+  little_killer_arrow:
+    - target_sum: 39
+      first_cell: [ 1,1 ]
+      direction: down_right
+  killer_cage:
+    - target_sum: 7
+      cage_cells: [[3,3], [4,3]]
+    - target_sum: 7
+      cage_cells: [[3,4], [4,4]]
+    - target_sum: 7
+      cage_cells: [[3,6], [3,7]]
+    - target_sum: 13
+      cage_cells: [[4,5], [5,5]]
+    - target_sum: 13
+      cage_cells: [[4,6], [5,6]]
+    - target_sum: 13
+      cage_cells: [[4,7], [5,7]]
+    - target_sum: 13
+      cage_cells: [[4,9], [5,9]]
+    - target_sum: 7
+      cage_cells: [[6,3], [6,4]]
+    - target_sum: 7
+      cage_cells: [[7,3], [7,4]]
+    - target_sum: 7
+      cage_cells: [[6,6], [7,6]]
+    - target_sum: 7
+      cage_cells: [[6,7], [7,7]]
+    - target_sum: 13
+      cage_cells: [[9,4], [9,5]]

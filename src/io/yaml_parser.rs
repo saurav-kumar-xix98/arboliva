@@ -1,30 +1,28 @@
-use crate::model::{Grid, Position, Puzzle, RegionShape};
-use crate::solver::constraints::constraint::Constraint;
-use crate::solver::constraints::constraint_set::ConstraintSet;
-use crate::solver::constraints::variants::thermometer::Thermometer;
-use crate::solver::constraints::variants::{killer, little_killer};
-use crate::solver::constraints::variants::{AntiKnightConstraint, ClassicConstraint, KillerConstraint, LittleKillerConstraint, ThermometerConstraint};
+use std::collections::{HashMap, HashSet};
+use crate::model::{Clue, ClueType, Grid, Position, Puzzle, RegionShape, Rule};
 use serde_yaml::Value;
 use std::error::Error;
 use std::fs;
+use crate::model::clue::{Direction, KillerCage, LittleKillerArrow, Thermometer};
 
 pub fn load_puzzle(path: &str) -> Result<Puzzle, Box<dyn Error>> {
     let yaml_str = fs::read_to_string(path)?;
     let yaml_value = serde_yaml::from_str(&yaml_str)?;
 
-    let puzzle = to_puzzle(yaml_value)?;
+    let puzzle = to_puzzle(&yaml_value)?;
 
     Ok(puzzle)
 }
 
-fn to_puzzle(value: Value) -> Result<Puzzle, String> {
-    let grid = to_grid(get_required(&value, "grid")?)?;
-    let constraint_set = to_constraint_set(get_required(&value, "constraint_set")?, &grid)?;
+fn to_puzzle(value: &Value) -> Result<Puzzle, String> {
+    let puzzle_grid = to_puzzle_grid(get_required(&value, "grid")?)?;
+    let rules = to_rules(get_required(&value, "rules")?)?;
+    let clues = to_clues(get_required(&value, "clues")?)?;
 
-    Ok(Puzzle { grid, constraint_set })
+    Ok(Puzzle { puzzle_grid, rules, clues })
 }
 
-fn to_grid(value: Value) -> Result<Grid<Option<u8>>, String> {
+fn to_puzzle_grid(value: Value) -> Result<Grid<Option<u8>>, String> {
     let region_rows = to_u8(get_required(&value, "region_rows")?)?;
     let region_cols = to_u8(get_required(&value, "region_cols")?)?;
 
@@ -54,73 +52,73 @@ fn to_grid(value: Value) -> Result<Grid<Option<u8>>, String> {
     Ok(grid)
 }
 
-fn to_constraint_set(value: Value, grid: &Grid<Option<u8>>) -> Result<ConstraintSet, String> {
-    let raw_constraints = to_vec(value)?;
-
-    let constraints = raw_constraints
-        .into_iter()
-        .map(|c| to_constraint(&c, grid))
-        .collect::<Result<Vec<_>, String>>()?;
-
-    Ok(ConstraintSet::new(constraints))
-}
-
-fn to_constraint(value: &Value, grid: &Grid<Option<u8>>) -> Result<Box<dyn Constraint>, String> {
-    let constraint_type = to_string(get_required(value, "type")?)?;
-
-    match constraint_type.as_str() {
-        "classic" => Ok(Box::new(ClassicConstraint)),
-        "anti_knight" => Ok(Box::new(AntiKnightConstraint)),
-        "killer" => Ok(Box::new(to_killer_constraint(value, grid)?)),
-        "little_killer" => Ok(Box::new(to_little_killer_constraint(value, grid)?)),
-        "thermometer" => Ok(Box::new(to_thermometer_constraint(value, grid)?)),
-        other => Err(format!("unknown constraint type: {}", other)),
-    }
-}
-
-fn to_killer_constraint(value: &Value, grid: &Grid<Option<u8>>) -> Result<KillerConstraint, String> {
-    let cages_yaml = to_vec(get_required(value, "cages")?)?;
-    let cages = cages_yaml.into_iter()
-        .map(|cage_yaml| {
-            let sum = to_u16(get_required(&cage_yaml, "sum")?)?;
-            let positions = to_vec_position(get_required(&cage_yaml, "positions")?)?;
-            Ok(killer::Cage { sum, positions })
-        })
-        .collect::<Result<Vec<killer::Cage>, String>>()?;
-
-    Ok(KillerConstraint::new(cages, grid.region_rows(), grid.region_cols()))
-}
-
-fn to_little_killer_constraint(value: &Value, grid: &Grid<Option<u8>>) -> Result<LittleKillerConstraint, String> {
-    let diagonals_yaml = to_vec(get_required(&value, "diagonals")?)?;
-    let diagonals = diagonals_yaml.into_iter()
-        .map(|diag_yaml| {
-            let sum = to_u16(get_required(&diag_yaml, "sum")?)?;
-            let direction = match to_string(get_required(&diag_yaml, "direction")?)?.as_str() {
-                "down_right" => little_killer::Direction::DownRight,
-                "down_left" => little_killer::Direction::DownLeft,
-                "up_right" => little_killer::Direction::UpRight,
-                "up_left" => little_killer::Direction::UpLeft,
-                other => return Err(format!("invalid direction: {}", other)),
+fn to_rules(value: Value) -> Result<HashSet<Rule>, String> {
+    to_vec(value)?.into_iter()
+        .map(|s| {
+            let rule = match to_string(s)?.as_str() {
+                "anti_knight" => Rule::AntiKnight,
+                "killer" => Rule::Killer,
+                "little_killer" => Rule::LittleKiller,
+                "thermometer" => Rule::Thermometer,
+                other => panic!("unknown rule: {}", other),
             };
-            let first_position = to_position(get_required(&diag_yaml, "first_position")?)?;
-            Ok(little_killer::Diagonal::new(sum, direction, first_position, grid.size()))
-        })
-        .collect::<Result<Vec<little_killer::Diagonal>, String>>()?;
-
-    Ok(LittleKillerConstraint::new(diagonals, grid.region_rows(), grid.region_cols()))
+            Ok(rule)
+        }).collect()
 }
 
-fn to_thermometer_constraint(value: &Value, grid: &Grid<Option<u8>>) -> Result<ThermometerConstraint, String> {
-    let thermometers_yaml = to_vec(get_required(value, "thermometers")?)?;
-    let thermometers = thermometers_yaml.into_iter()
-        .map(|thermometer_yaml| {
-            let positions = to_vec_position(get_required(&thermometer_yaml, "positions")?)?;
-            Ok(Thermometer { positions })
+fn to_clues(value: Value) -> Result<HashMap<ClueType, Vec<Clue>>, String> {
+    to_map(value)?.into_iter()
+        .map(|(key, value)| {
+            let clue_type = match key.as_str() {
+                "killer_cage" => ClueType::KillerCage,
+                "little_killer_arrow" => ClueType::LittleKillerArrow,
+                "thermometer" => ClueType::Thermometer,
+                other => panic!("unknown clue type: {}", other),
+            };
+            let clues: Vec<Clue> = to_vec(value)?
+                .into_iter()
+                .map(|clue_yaml| {
+                    let clue = match clue_type {
+                        ClueType::KillerCage => {
+                            Clue::KillerCage(to_killer_cage(clue_yaml)?)
+                        }
+                        ClueType::LittleKillerArrow => {
+                            Clue::LittleKillerArrow(to_little_killer_arrow(clue_yaml)?)
+                        }
+                        ClueType::Thermometer => {
+                            Clue::Thermometer(to_thermometer(clue_yaml)?)
+                        }
+                    };
+                    Ok(clue)
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            Ok((clue_type, clues))
         })
-        .collect::<Result<Vec<Thermometer>, String>>()?;
+        .collect()
+}
 
-    Ok(ThermometerConstraint::new(thermometers, grid.region_rows(), grid.region_cols()))
+fn to_killer_cage(value: Value) -> Result<KillerCage, String> {
+    let target_sum = to_u16(get_required(&value, "target_sum")?)?;
+    let cage_cells = to_vec_position(get_required(&value, "cage_cells")?)?;
+    Ok(KillerCage{target_sum, cage_cells})
+}
+
+fn to_little_killer_arrow(value: Value) -> Result<LittleKillerArrow, String> {
+    let target_sum = to_u16(get_required(&value, "target_sum")?)?;
+    let first_cell = to_position(get_required(&value, "first_cell")?)?;
+    let direction = match to_string(get_required(&value, "direction")?)?.as_str() {
+        "down_right" => Direction::DownRight,
+        "down_left" => Direction::DownLeft,
+        "up_right" => Direction::UpRight,
+        "up_left" => Direction::UpLeft,
+        other => panic!("unknown direction: {}", other),
+    };
+    Ok(LittleKillerArrow{target_sum, first_cell, direction})
+}
+
+fn to_thermometer(value: Value) -> Result<Thermometer, String> {
+    let thermometer_cells = to_vec_position(get_required(&value, "thermometer_cells")?)?;
+    Ok(Thermometer{thermometer_cells})
 }
 
 fn to_u8(value: Value) -> Result<u8, String> {
@@ -145,6 +143,17 @@ fn to_vec(value: Value) -> Result<Vec<Value>, String> {
     value.as_sequence()
         .map(|v| v.clone())
         .ok_or_else(|| format!("invalid sequence value: {:?}", value))
+}
+
+fn to_map(value: Value) -> Result<HashMap<String, Value>, String> {
+    value.as_mapping()
+        .ok_or_else(|| format!("invalid map value: {:?}", value))?
+        .iter()
+        .map(|(k, v)| {
+            let key = k.as_str().ok_or_else(|| "")?.to_string();
+            Ok((key, v.clone()))
+        })
+        .collect()
 }
 
 fn to_position(value: Value) -> Result<Position, String> {

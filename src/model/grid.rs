@@ -22,6 +22,9 @@ impl <Cell: Clone> Grid<Cell> {
 }
 
 impl <Cell> Grid<Cell> {
+    pub fn region_shape(&self) -> RegionShape {
+        self.region_shape.clone()
+    }
 
     pub fn region_rows(&self) -> u8 {
         self.region_shape.region_rows
@@ -71,7 +74,11 @@ impl <Cell> IndexMut<Position> for Grid<Cell> {
     }
 }
 
-impl Display for Grid<u8> {
+pub type CandidateGrid = Grid<CandidateCell>;
+pub type PuzzleGrid = Grid<Option<u8>>;
+pub type SolutionGrid = Grid<u8>;
+
+impl Display for SolutionGrid {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
 
         let mut separator = String::new();
@@ -108,7 +115,7 @@ impl Display for Grid<u8> {
     }
 }
 
-impl Display for Grid<CandidateCell> {
+impl Display for CandidateGrid {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
 
         let mut region_separator = String::new();

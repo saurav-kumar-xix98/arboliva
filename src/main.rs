@@ -5,7 +5,7 @@ mod solver;
 mod io;
 
 fn main() {
-    let puzzle = match load_puzzle("puzzles/carnival.yaml") {
+    let puzzle = match load_puzzle("puzzles/thermometer.yaml") {
         Ok(p) => p,
         Err(e) => {
             eprintln!("Failed to load puzzle: {}", e);
@@ -13,8 +13,8 @@ fn main() {
         }
     };
 
-    match solver::solve(puzzle) {
-        Some(solution) => println!("{}", solution),
+    match solver::solve(&puzzle) {
+        Some(solution_grid) => println!("{}", solution_grid),
         None => println!("No solution found"),
     }
 }

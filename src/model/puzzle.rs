@@ -1,7 +1,8 @@
-use crate::model::Grid;
-use crate::solver::constraints::constraint_set::ConstraintSet;
+use std::collections::{HashMap, HashSet};
+use crate::model::{Clue, ClueType, PuzzleGrid, Rule};
 
 pub struct Puzzle {
-    pub grid: Grid<Option<u8>>,
-    pub constraint_set: ConstraintSet,
+    pub puzzle_grid: PuzzleGrid,
+    pub rules: HashSet<Rule>,
+    pub clues: HashMap<ClueType, Vec<Clue>>,
 }
