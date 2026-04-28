@@ -1,4 +1,4 @@
-use crate::model::{CandidateCell, Grid};
+use crate::model::{CandidateGrid, Grid};
 use crate::solver::constraints::active_positions_set::ActivePositionsSet;
 use crate::solver::constraints::constraint::Constraint;
 use crate::solver::constraints::helpers;
@@ -14,7 +14,7 @@ impl ConstraintSet {
     }
 
     pub fn update(&self,
-        grid: &mut Grid<CandidateCell>,
+        grid: &mut CandidateGrid,
         active_positions: Grid<bool>
     ) -> bool {
 

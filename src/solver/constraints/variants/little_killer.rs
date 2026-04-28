@@ -1,6 +1,6 @@
-use crate::model::{CandidateCell, Grid, Position, RegionShape};
-use crate::solver::constraints::constraint::Constraint;
 use crate::model::clue;
+use crate::model::{CandidateGrid, Grid, Position, RegionShape};
+use crate::solver::constraints::constraint::Constraint;
 
 pub struct Diagonal {
     pub sum: u16,
@@ -83,7 +83,7 @@ impl LittleKillerConstraint {
 }
 
 impl Constraint for LittleKillerConstraint {
-    fn update(&self, grid: &mut Grid<CandidateCell>, active_positions: Grid<bool>) -> Option<Grid<bool>> {
+    fn update(&self, grid: &mut CandidateGrid, active_positions: Grid<bool>) -> Option<Grid<bool>> {
         println!("LittleKillerConstraint::update");
 
         let mut is_diagonal_active = vec![false; self.diagonals.len()];
@@ -99,7 +99,7 @@ impl Constraint for LittleKillerConstraint {
             }
         }
 
-        let mut affected_positions = grid.map(|_| false);
+        let mut affected_positions = Grid::from_default(grid.region_shape(), false);
 
         for i in 0..is_diagonal_active.len() {
             if !is_diagonal_active[i] {
@@ -131,7 +131,7 @@ impl Constraint for LittleKillerConstraint {
     }
 }
 
-fn recursive_solve(grid: &mut Grid<CandidateCell>,
+fn recursive_solve(grid: &mut CandidateGrid,
                    diagonal_positions: &Vec<Position>,
                    updated_candidates: &mut Vec<Vec<bool>>,
                    values_used_in_box: &mut Vec<Vec<bool>>,

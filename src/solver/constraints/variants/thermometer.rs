@@ -1,4 +1,4 @@
-use crate::model::{CandidateCell, Grid, Position, RegionShape};
+use crate::model::{CandidateGrid, Grid, Position, RegionShape};
 use crate::solver::constraints::constraint::Constraint;
 
 pub struct Thermometer {
@@ -25,7 +25,7 @@ impl ThermometerConstraint {
 }
 
 impl Constraint for ThermometerConstraint {
-    fn update(&self, grid: &mut Grid<CandidateCell>, active_positions: Grid<bool>) -> Option<Grid<bool>> {
+    fn update(&self, grid: &mut CandidateGrid, active_positions: Grid<bool>) -> Option<Grid<bool>> {
         println!("ThermometerConstraint::update");
 
         let mut is_thermometer_active = vec![false; self.thermometers.len()];
@@ -41,7 +41,7 @@ impl Constraint for ThermometerConstraint {
             }
         }
 
-        let mut affected_positions = grid.map(|_| false);
+        let mut affected_positions = Grid::from_default(grid.region_shape(), false);
 
         for i in 0..is_thermometer_active.len() {
             if !is_thermometer_active[i] {
@@ -77,7 +77,7 @@ impl Constraint for ThermometerConstraint {
     }
 }
 
-fn recursive_solve(grid: &mut Grid<CandidateCell>,
+fn recursive_solve(grid: &mut CandidateGrid,
                    thermometer_positions: &Vec<Position>,
                    updated_candidates: &mut Vec<Vec<bool>>,
                    index: usize,

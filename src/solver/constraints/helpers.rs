@@ -1,4 +1,4 @@
-use crate::model::{CandidateCell, Grid, Position};
+use crate::model::{CandidateGrid, Grid, Position};
 
 pub fn is_any_true(grid: &Grid<bool>) -> bool {
     for row in 0..grid.size() {
@@ -24,13 +24,13 @@ pub fn accumulate(active_positions: &Grid<bool>, accumulated: &mut Grid<bool>) {
 }
 
 pub fn update_grid_for_position<F>(
-    grid: &mut Grid<CandidateCell>,
+    grid: &mut CandidateGrid,
     active_positions: Grid<bool>,
     get_positions_to_update: F,
 ) -> Option<Grid<bool>>
 where F: Fn(Position) -> Vec<Position> {
 
-    let mut affected_positions = grid.map(|_| false);
+    let mut affected_positions = Grid::from_default(grid.region_shape(), false);
 
     for row in 0..grid.size() {
         for col in 0..grid.size() {

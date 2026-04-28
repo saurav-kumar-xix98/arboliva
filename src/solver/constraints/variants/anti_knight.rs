@@ -1,11 +1,11 @@
-use crate::model::{CandidateCell, Grid, Position};
+use crate::model::{CandidateGrid, Grid, Position};
 use crate::solver::constraints::constraint::Constraint;
 use crate::solver::constraints::helpers;
 
 pub struct AntiKnightConstraint;
 
 impl Constraint for AntiKnightConstraint {
-    fn update(&self, grid: &mut Grid<CandidateCell>, active_positions: Grid<bool>) -> Option<Grid<bool>> {
+    fn update(&self, grid: &mut CandidateGrid, active_positions: Grid<bool>) -> Option<Grid<bool>> {
         println!("AntiKnightConstraint::update");
 
         let grid_size = grid.size();

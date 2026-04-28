@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
 use crate::model::{Clue, ClueType, PuzzleGrid, Rule};
+use std::collections::{HashMap, HashSet};
 
 pub struct Puzzle {
     pub puzzle_grid: PuzzleGrid,

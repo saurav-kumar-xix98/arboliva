@@ -1,49 +1,48 @@
-use std::collections::{HashMap, HashSet};
-use crate::model::{Clue, ClueType, Grid, Position, Puzzle, RegionShape, Rule};
-use serde_yaml::Value;
-use std::error::Error;
-use std::fs;
 use crate::model::clue::{Direction, KillerCage, LittleKillerArrow, Thermometer};
+use crate::model::{Clue, ClueType, Grid, Position, Puzzle, PuzzleGrid, RegionShape, Rule};
+use serde_yaml::{Mapping, Sequence, Value};
+use std::collections::{HashMap, HashSet};
+use std::fs;
 
-pub fn load_puzzle(path: &str) -> Result<Puzzle, Box<dyn Error>> {
-    let yaml_str = fs::read_to_string(path)?;
-    let yaml_value = serde_yaml::from_str(&yaml_str)?;
-
-    let puzzle = to_puzzle(&yaml_value)?;
-
-    Ok(puzzle)
+pub fn load_puzzle(path: &str) -> Result<Puzzle, String> {
+    let yaml_str = fs::read_to_string(path)
+        .map_err(|e| format!("Error reading {}: {}", path, e))?;
+    let yaml_value: Value = serde_yaml::from_str(&yaml_str)
+        .map_err(|e| format!("Error parsing YAML: {}", e))?;
+    Ok(to_puzzle(&yaml_value)?)
 }
 
 fn to_puzzle(value: &Value) -> Result<Puzzle, String> {
-    let puzzle_grid = to_puzzle_grid(get_required(&value, "grid")?)?;
-    let rules = to_rules(get_required(&value, "rules")?)?;
-    let clues = to_clues(get_required(&value, "clues")?)?;
-
-    Ok(Puzzle { puzzle_grid, rules, clues })
+    Ok(Puzzle {
+        puzzle_grid: to_puzzle_grid(get(value, "grid")?)?,
+        rules: to_rules(get(value, "rules")?)?,
+        clues: to_clues(get(value, "clues")?)?,
+    })
 }
 
-fn to_puzzle_grid(value: Value) -> Result<Grid<Option<u8>>, String> {
-    let region_rows = to_u8(get_required(&value, "region_rows")?)?;
-    let region_cols = to_u8(get_required(&value, "region_cols")?)?;
+fn to_puzzle_grid(value: &Value) -> Result<PuzzleGrid, String> {
+    let region_rows = to_u8(get(value, "region_rows")?)?;
+    let region_cols = to_u8(get(value, "region_cols")?)?;
 
-    let mut grid = Grid::from_default(RegionShape{ region_rows, region_cols }, None);
+    let mut grid = Grid::from_default(
+        RegionShape { region_rows, region_cols },
+        None,
+    );
 
-    let cells = to_vec(get_required(&value, "cells")?)?;
-
-    for cell in cells {
-        let pos = to_position(get_required(&cell, "position")?)?;
-        let val = to_u8(get_required(&cell, "value")?)?;
+    for cell in to_sequence(get(value, "cells")?)? {
+        let pos = to_position(get(cell, "position")?)?;
+        let val = to_u8(get(cell, "value")?)?;
 
         if pos.row >= grid.size() || pos.col >= grid.size() {
             return Err(format!("invalid position {}", pos));
         }
 
         if val == 0 || val > grid.size() {
-            return Err(format!("invalid value {} at position {}", val, pos));
+            return Err(format!("invalid value {} at {}", val, pos));
         }
 
         if grid[pos].is_some() {
-            return Err(format!("duplicate values at position {}", pos));
+            return Err(format!("duplicate value at {}", pos));
         }
 
         grid[pos] = Some(val);
@@ -52,130 +51,125 @@ fn to_puzzle_grid(value: Value) -> Result<Grid<Option<u8>>, String> {
     Ok(grid)
 }
 
-fn to_rules(value: Value) -> Result<HashSet<Rule>, String> {
-    to_vec(value)?.into_iter()
-        .map(|s| {
-            let rule = match to_string(s)?.as_str() {
-                "anti_knight" => Rule::AntiKnight,
-                "killer" => Rule::Killer,
-                "little_killer" => Rule::LittleKiller,
-                "thermometer" => Rule::Thermometer,
-                other => panic!("unknown rule: {}", other),
-            };
-            Ok(rule)
-        }).collect()
+fn to_rules(value: &Value) -> Result<HashSet<Rule>, String> {
+    to_sequence(value)?
+        .iter()
+        .map(|val| match to_str(val)? {
+            "anti_knight" => Ok(Rule::AntiKnight),
+            "killer" => Ok(Rule::Killer),
+            "little_killer" => Ok(Rule::LittleKiller),
+            "thermometer" => Ok(Rule::Thermometer),
+            other => Err(format!("unknown rule: {}", other)),
+        })
+        .collect()
 }
 
-fn to_clues(value: Value) -> Result<HashMap<ClueType, Vec<Clue>>, String> {
-    to_map(value)?.into_iter()
-        .map(|(key, value)| {
-            let clue_type = match key.as_str() {
-                "killer_cage" => ClueType::KillerCage,
-                "little_killer_arrow" => ClueType::LittleKillerArrow,
-                "thermometer" => ClueType::Thermometer,
-                other => panic!("unknown clue type: {}", other),
-            };
-            let clues: Vec<Clue> = to_vec(value)?
-                .into_iter()
-                .map(|clue_yaml| {
-                    let clue = match clue_type {
-                        ClueType::KillerCage => {
-                            Clue::KillerCage(to_killer_cage(clue_yaml)?)
-                        }
-                        ClueType::LittleKillerArrow => {
-                            Clue::LittleKillerArrow(to_little_killer_arrow(clue_yaml)?)
-                        }
-                        ClueType::Thermometer => {
-                            Clue::Thermometer(to_thermometer(clue_yaml)?)
-                        }
-                    };
-                    Ok(clue)
-                })
-                .collect::<Result<Vec<_>, String>>()?;
+fn to_clues(value: &Value) -> Result<HashMap<ClueType, Vec<Clue>>, String> {
+    to_mapping(value)?
+        .iter()
+        .map(|(key, val)| {
+            let clue_type = to_clue_type(key)?;
+            let clues = to_vec_clue(val, &clue_type)?;
             Ok((clue_type, clues))
         })
         .collect()
 }
 
-fn to_killer_cage(value: Value) -> Result<KillerCage, String> {
-    let target_sum = to_u16(get_required(&value, "target_sum")?)?;
-    let cage_cells = to_vec_position(get_required(&value, "cage_cells")?)?;
-    Ok(KillerCage{target_sum, cage_cells})
+fn to_killer_cage(value: &Value) -> Result<KillerCage, String> {
+    Ok(KillerCage {
+        target_sum: to_u16(get(value, "target_sum")?)?,
+        cage_cells: to_vec_position(get(value, "cage_cells")?)?,
+    })
 }
 
-fn to_little_killer_arrow(value: Value) -> Result<LittleKillerArrow, String> {
-    let target_sum = to_u16(get_required(&value, "target_sum")?)?;
-    let first_cell = to_position(get_required(&value, "first_cell")?)?;
-    let direction = match to_string(get_required(&value, "direction")?)?.as_str() {
-        "down_right" => Direction::DownRight,
-        "down_left" => Direction::DownLeft,
-        "up_right" => Direction::UpRight,
-        "up_left" => Direction::UpLeft,
-        other => panic!("unknown direction: {}", other),
-    };
-    Ok(LittleKillerArrow{target_sum, first_cell, direction})
+fn to_little_killer_arrow(value: &Value) -> Result<LittleKillerArrow, String> {
+    Ok(LittleKillerArrow {
+        target_sum: to_u16(get(value, "target_sum")?)?,
+        first_cell: to_position(get(value, "first_cell")?)?,
+        direction: to_direction(get(value, "direction")?)?,
+    })
 }
 
-fn to_thermometer(value: Value) -> Result<Thermometer, String> {
-    let thermometer_cells = to_vec_position(get_required(&value, "thermometer_cells")?)?;
-    Ok(Thermometer{thermometer_cells})
+fn to_thermometer(value: &Value) -> Result<Thermometer, String> {
+    Ok(Thermometer {
+        thermometer_cells: to_vec_position(get(value, "thermometer_cells")?)?,
+    })
 }
 
-fn to_u8(value: Value) -> Result<u8, String> {
-    u8::try_from(to_u64(value)?).map_err(|_| "value out of range for u8".to_string())
-}
-
-fn to_u16(value: Value) -> Result<u16, String> {
-    u16::try_from(to_u64(value)?).map_err(|_| "value out of range for u16".to_string())
-}
-
-fn to_u64(value: Value) -> Result<u64, String> {
-    value.as_u64().ok_or_else(|| format!("invalid value: {:?}", value))
-}
-
-fn to_string(value: Value) -> Result<String, String> {
-    value.as_str()
-        .map(|s| s.to_string())
-        .ok_or_else(|| format!("invalid string value: {:?}", value))
-}
-
-fn to_vec(value: Value) -> Result<Vec<Value>, String> {
-    value.as_sequence()
-        .map(|v| v.clone())
-        .ok_or_else(|| format!("invalid sequence value: {:?}", value))
-}
-
-fn to_map(value: Value) -> Result<HashMap<String, Value>, String> {
-    value.as_mapping()
-        .ok_or_else(|| format!("invalid map value: {:?}", value))?
+fn to_vec_position(value: &Value) -> Result<Vec<Position>, String> {
+    to_sequence(value)?
         .iter()
-        .map(|(k, v)| {
-            let key = k.as_str().ok_or_else(|| "")?.to_string();
-            Ok((key, v.clone()))
+        .map(to_position)
+        .collect()
+}
+
+fn to_clue_type(value: &Value) -> Result<ClueType, String> {
+    match to_str(value)? {
+        "killer_cage" => Ok(ClueType::KillerCage),
+        "little_killer_arrow" => Ok(ClueType::LittleKillerArrow),
+        "thermometer" => Ok(ClueType::Thermometer),
+        other => Err(format!("unknown clue type: {}", other)),
+    }
+}
+
+fn to_vec_clue(value: &Value, clue_type: &ClueType) -> Result<Vec<Clue>, String> {
+    to_sequence(value)?.iter()
+        .map(|clue_yaml| match clue_type {
+            ClueType::KillerCage => Ok(Clue::KillerCage(to_killer_cage(clue_yaml)?)),
+            ClueType::LittleKillerArrow => Ok(Clue::LittleKillerArrow(to_little_killer_arrow(clue_yaml)?)),
+            ClueType::Thermometer => Ok(Clue::Thermometer(to_thermometer(clue_yaml)?)),
         })
         .collect()
 }
 
-fn to_position(value: Value) -> Result<Position, String> {
-    let seq = to_vec(value)?;
+fn to_direction(value: &Value) -> Result<Direction, String> {
+    match to_str(value)? {
+        "down_right" => Ok(Direction::DownRight),
+        "down_left" => Ok(Direction::DownLeft),
+        "up_right" => Ok(Direction::UpRight),
+        "up_left" => Ok(Direction::UpLeft),
+        other => Err(format!("unknown direction: {}", other)),
+    }
+}
+
+fn to_position(value: &Value) -> Result<Position, String> {
+    let seq = to_sequence(value)?;
     if seq.len() != 2 {
-        return Err("Position must have exactly 2 elements".to_string());
+        return Err(format!("position must have exactly two values, got {}", seq.len()));
     }
 
-    let row = to_u8(seq[0].clone())?.checked_sub(1).ok_or_else(|| "")?;
-    let col = to_u8(seq[1].clone())?.checked_sub(1).ok_or_else(|| "")?;
-    Ok(Position{row, col})
+    Ok(Position {
+        row: to_u8(&seq[0])?.checked_sub(1).ok_or("row underflow")?,
+        col: to_u8(&seq[1])?.checked_sub(1).ok_or("col underflow")?,
+    })
 }
 
-fn to_vec_position(value: Value) -> Result<Vec<Position>, String> {
-    to_vec(value)?
-        .into_iter()
-        .map(to_position)
-        .collect::<Result<Vec<_>, _>>()
+/* ---------- Helpers ---------- */
+
+fn get<'a>(value: &'a Value, key: &str) -> Result<&'a Value, String> {
+    value.get(key).ok_or_else(|| format!("missing key '{}'", key))
 }
 
-fn get_required(value: &Value, key: &str) -> Result<Value, String> {
-    value.get(key)
-        .cloned()
-        .ok_or_else(|| format!("missing key '{}'", key))
+fn to_u8(value: &Value) -> Result<u8, String> {
+    u8::try_from(to_u64(value)?).map_err(|_| "u8 overflow".to_string())
+}
+
+fn to_u16(value: &Value) -> Result<u16, String> {
+    u16::try_from(to_u64(value)?).map_err(|_| "u16 overflow".to_string())
+}
+
+fn to_u64(value: &Value) -> Result<u64, String> {
+    value.as_u64().ok_or_else(|| format!("invalid number: {:?}", value))
+}
+
+fn to_str(value: &Value) -> Result<&str, String> {
+    value.as_str().ok_or_else(|| format!("invalid string: {:?}", value))
+}
+
+fn to_sequence(value: &Value) -> Result<&Sequence, String> {
+    value.as_sequence().ok_or_else(|| format!("invalid sequence: {:?}", value))
+}
+
+fn to_mapping(value: &Value) -> Result<&Mapping, String> {
+    value.as_mapping().ok_or_else(|| format!("invalid map: {:?}", value))
 }

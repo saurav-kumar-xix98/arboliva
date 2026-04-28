@@ -1,4 +1,4 @@
-use crate::model::{CandidateCell, Grid, Position};
+use crate::model::{CandidateGrid, Grid, Position};
 use crate::solver::constraints::constraint::Constraint;
 use crate::solver::constraints::helpers;
 
@@ -6,7 +6,7 @@ pub struct ClassicConstraint;
 
 impl Constraint for ClassicConstraint {
     fn update(&self,
-        grid: &mut Grid<CandidateCell>,
+        grid: &mut CandidateGrid,
         active_positions: Grid<bool>
     ) -> Option<Grid<bool>> {
 

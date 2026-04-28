@@ -19,7 +19,7 @@ fn from_candidate_grid(candidate_grid: CandidateGrid) -> SolutionGrid {
     solution_grid
 }
 
-fn find_best_candidate(grid: &Grid<CandidateCell>) -> Option<Position> {
+fn find_best_candidate(grid: &CandidateGrid) -> Option<Position> {
     let mut best_position: Option<Position> = None;
     let mut best_count = grid.size() + 1;
 
@@ -83,7 +83,7 @@ fn to_constraint_set(puzzle: &Puzzle) -> ConstraintSet {
     ConstraintSet::new(constraints)
 }
 
-fn solve_recursive(grid: &mut Grid<CandidateCell>,
+fn solve_recursive(grid: &mut CandidateGrid,
     constraint_set: &ConstraintSet,
     active_positions: Grid<bool>
 ) -> bool {
@@ -104,7 +104,7 @@ fn solve_recursive(grid: &mut Grid<CandidateCell>,
 
         let mut new_grid = grid.clone();
         new_grid[position] = CandidateCell::with_value(value);
-        let mut active_positions = grid.map(|_| false);
+        let mut active_positions = Grid::from_default(grid.region_shape(), false);
         active_positions[position] = true;
 
         println!("Guessing value {} at {}", value, position);
