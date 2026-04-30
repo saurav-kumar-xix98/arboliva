@@ -14,7 +14,7 @@ fn main() {
     };
 
     match solver::solve(&puzzle) {
-        Some(solution_grid) => println!("{}", solution_grid),
-        None => println!("No solution found"),
+        Ok(solved_grid) => println!("{}", solved_grid),
+        Err(e) => eprintln!("Failed to solve: {}", e),
     }
 }

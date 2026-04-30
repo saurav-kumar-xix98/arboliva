@@ -1,18 +1,26 @@
-use crate::model::{CandidateCell, CandidateGrid, Clue, ClueType, Grid, Position, Puzzle, PuzzleGrid, Rule, SolutionGrid};
+use crate::model::{CandidateCell, CandidateGrid, Clue, ClueType, Grid, Position, Puzzle, Rule, SolutionGrid, SolverResult, SolverState};
 use crate::solver::constraints::constraint::Constraint;
 use crate::solver::constraints::constraint_set::ConstraintSet;
 use crate::solver::constraints::variants::{killer, little_killer, thermometer, AntiKnightConstraint, ClassicConstraint, KillerConstraint, LittleKillerConstraint, ThermometerConstraint};
 
-fn to_candidate_grid(puzzle_grid: &PuzzleGrid) -> CandidateGrid {
-    let candidate_grid = puzzle_grid.map(|cell| match cell {
+fn to_solver_state(puzzle: &Puzzle, constraint_set: &ConstraintSet) -> Option<SolverState> {
+    let size = puzzle.puzzle_grid.size();
+    let mut candidate_grid = puzzle.puzzle_grid.map(|cell| match cell {
         Some(value) => CandidateCell::with_value(*value),
-        None => CandidateCell::with_count(puzzle_grid.size())
+        None => CandidateCell::with_count(size)
     });
-    candidate_grid
+
+    let active_positions = Grid::from_default(puzzle.puzzle_grid.region_shape(), true);
+
+    if !constraint_set.update(&mut candidate_grid, active_positions) {
+        return None;
+    }
+
+    Some(SolverState{candidate_grid})
 }
 
-fn from_candidate_grid(candidate_grid: CandidateGrid) -> SolutionGrid {
-    let solution_grid = candidate_grid.map(|cell| match cell.fixed_value() {
+fn to_solution_grid(solver_state: &SolverState) -> SolutionGrid {
+    let solution_grid = solver_state.candidate_grid.map(|cell| match cell.fixed_value() {
         Some(value) => value,
         None => panic!("CandidateCell is not solved")
     });
@@ -69,7 +77,7 @@ fn to_constraint_set(puzzle: &Puzzle) -> ConstraintSet {
             },
             Rule::Thermometer => {
                 let thermometers = match puzzle.clues.get(&ClueType::Thermometer) {
-                    Some(thermometers) => thermometers.iter().map(|clue| match clue { 
+                    Some(thermometers) => thermometers.iter().map(|clue| match clue {
                         Clue::Thermometer(thermometer) => thermometer::Thermometer{positions: thermometer.thermometer_cells.clone()},
                         _ => panic!("Expected Thermometer clue")
                     }).collect(),
@@ -83,51 +91,59 @@ fn to_constraint_set(puzzle: &Puzzle) -> ConstraintSet {
     ConstraintSet::new(constraints)
 }
 
-fn solve_recursive(grid: &mut CandidateGrid,
-    constraint_set: &ConstraintSet,
-    active_positions: Grid<bool>
-) -> bool {
-
-    if !constraint_set.update(grid, active_positions) {
-        return false;
-    }
-
-    let position = match find_best_candidate(grid) {
+fn solve_recursive(solver_state: &mut SolverState, constraint_set: &ConstraintSet) -> SolverResult {
+    let position = match find_best_candidate(&solver_state.candidate_grid) {
         Some(pos) => pos,
-        None => return true,
+        None => return SolverResult::Solution(solver_state.clone()),
     };
 
-    for value in 1..=grid.size() {
-        if !grid[position].contains(value) {
+    let mut solved_state = None;
+    for value in 1..=solver_state.candidate_grid.size() {
+        if !solver_state.candidate_grid[position].contains(value) {
             continue;
         }
 
-        let mut new_grid = grid.clone();
-        new_grid[position] = CandidateCell::with_value(value);
-        let mut active_positions = Grid::from_default(grid.region_shape(), false);
-        active_positions[position] = true;
-
         println!("Guessing value {} at {}", value, position);
 
-        if solve_recursive(&mut new_grid, constraint_set, active_positions) {
-            *grid = new_grid;
-            return true;
+        let mut new_solver_state = solver_state.clone();
+        new_solver_state.candidate_grid[position] = CandidateCell::with_value(value);
+        let mut active_positions = Grid::from_default(solver_state.candidate_grid.region_shape(), false);
+        active_positions[position] = true;
+
+        if !constraint_set.update(&mut new_solver_state.candidate_grid, active_positions) {
+            continue;
+        }
+
+        match solve_recursive(&mut new_solver_state, constraint_set) {
+            SolverResult::NoSolution => continue,
+            SolverResult::MultipleSolution => return SolverResult::MultipleSolution,
+            SolverResult::Solution(new_solver_state) => {
+                match solved_state {
+                    Some(_) => return SolverResult::MultipleSolution,
+                    None => solved_state = Some(new_solver_state)
+                };
+            },
         }
     }
 
-    false
+    match solved_state { 
+        Some(solver_state) => SolverResult::Solution(solver_state),
+        None => SolverResult::NoSolution,
+    }
 }
 
-pub fn solve(puzzle: &Puzzle) -> Option<SolutionGrid> {
-    let mut candidate_grid = to_candidate_grid(&puzzle.puzzle_grid);
+pub fn solve(puzzle: &Puzzle) -> Result<SolutionGrid, String> {
     let constraint_set = to_constraint_set(puzzle);
-    let active_positions = Grid::from_default(puzzle.puzzle_grid.region_shape(), true);
+    let mut solver_state = match to_solver_state(puzzle, &constraint_set) {
+        Some(candidate_grid) => candidate_grid,
+        None => return Err("Contradiction found".to_string()),
+    };
 
-    println!("{}", candidate_grid);
+    println!("{}", solver_state.candidate_grid);
 
-    if solve_recursive(&mut candidate_grid, &constraint_set, active_positions) {
-        Some(from_candidate_grid(candidate_grid))
-    } else {
-        None
+    match solve_recursive(&mut solver_state, &constraint_set) {
+        SolverResult::NoSolution => Err("No solution found".to_string()),
+        SolverResult::MultipleSolution => Err("Multiple solution found".to_string()),
+        SolverResult::Solution(new_solver_state) => Ok(to_solution_grid(&new_solver_state)),
     }
 }

@@ -6,6 +6,8 @@ pub mod position;
 pub mod puzzle;
 pub mod region_shape;
 mod rule;
+mod solver_result;
+mod solver_state;
 
 pub use candidate_cell::CandidateCell;
 pub use clue::Clue;
@@ -18,3 +20,5 @@ pub use position::Position;
 pub use puzzle::Puzzle;
 pub use region_shape::RegionShape;
 pub use rule::Rule;
+pub use solver_result::SolverResult;
+pub use solver_state::SolverState;
